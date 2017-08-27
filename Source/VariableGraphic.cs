@@ -1,37 +1,70 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using UnityEngine;
 using Verse;
 
 namespace ZombieLand
 {
-	public class PreparedMaterial
+
+    public class DynamicMaterial : Material, IDisposable {
+
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing) {
+            if (!disposedValue) {
+                Destroy(this);
+                disposedValue = true;
+            }
+        }
+        
+        ~DynamicMaterial() {          
+           Dispose(false);
+        }
+       
+        public void Dispose() {
+           
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
+        public DynamicMaterial(string contents) : base(contents) {
+        }
+
+        public DynamicMaterial(Shader shader) : base(shader) {
+        }
+
+        public DynamicMaterial(Material source) : base(source) {
+        }
+    }
+
+
+    public class PreparedMaterial : IDisposable
 	{
-		Material material;
+        DynamicMaterial material;
 		MaterialRequest req;
 		ColorData data;
 
-		public PreparedMaterial(MaterialRequest req, ColorData data)
+	    private bool disposed;
+
+	    public PreparedMaterial(MaterialRequest req, ColorData data)
 		{
 			this.req = req;
 			this.data = data;
 		}
 
-		~PreparedMaterial()
-		{
-			var tex = material?.mainTexture;
-			if (tex != null)
-				Object.Destroy(tex);
-		}
-
 		public Material GetMaterial
 		{
-			get
-			{
+			get {
+			    if (disposed)
+			        throw new ObjectDisposedException(ToString());
+
 				if (material == null)
 				{
 					var mainTex = data.ToTexture();
 					data = null;
-					material = new Material(req.shader)
+					material = new DynamicMaterial(req.shader)
 					{
 						name = req.shader.name + "_" + mainTex.name,
 						mainTexture = mainTex,
@@ -46,9 +79,22 @@ namespace ZombieLand
 				return material;
 			}
 		}
-	}
 
-	public class VariableGraphic : Graphic
+	    public void Dispose() {
+	        Dispose(true);
+	    }
+
+        private void Dispose(bool v) {
+            if (!disposed) {
+                material?.Dispose();
+                material = null;
+            }
+
+            disposed = true;
+        }
+    }
+
+	public class VariableGraphic : Graphic, IDisposable
 	{
 		private PreparedMaterial[] mats = new PreparedMaterial[3];
 		private int hash;
@@ -127,5 +173,20 @@ namespace ZombieLand
 		{
 			return hash;
 		}
-	}
+
+	    public void Dispose() {
+            Dispose(true);
+
+	    }
+
+        private void Dispose(bool v) {
+            if (mats != null) {
+                // clean way would need to trigger objectdisposedexceptions on use after calling tis - but what the hell.. running into an empty array should error too
+                foreach (var preparedMaterial in mats) {
+                    preparedMaterial.Dispose();
+                }
+                mats = null;
+            }
+        }
+    }
 }

@@ -8,7 +8,7 @@ using Verse.Sound;
 
 namespace ZombieLand
 {
-	public class Zombie : Pawn
+	public class Zombie : Pawn, IDisposable
 	{
 		public ZombieState state = ZombieState.Emerging;
 		public int raging = 0;
@@ -52,7 +52,12 @@ namespace ZombieLand
 			}
 		}
 
-		public override void DeSpawn()
+	    public override void Destroy(DestroyMode mode = DestroyMode.Vanish) {
+	        base.Destroy(mode);
+            Dispose();
+	    }
+
+	    public override void DeSpawn()
 		{
 			var grid = Map.GetGrid();
 			grid.ChangeZombieCount(lastGotoPosition, -1);
@@ -184,5 +189,14 @@ namespace ZombieLand
 
 			RenderRubble(drawLoc);
 		}
-	}
+
+	    public void Dispose() {
+	        Dispose(true);
+	    }
+
+        private void Dispose(bool disposing) {
+            this.customBodyGraphic?.Dispose();
+            this.customHeadGraphic?.Dispose();
+        }
+    }
 }
